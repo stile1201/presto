@@ -136,6 +136,17 @@ import static java.util.stream.Collectors.toList;
 class AstBuilder
         extends SqlBaseBaseVisitor<Node>
 {
+    private boolean caseSensitive;
+
+    public AstBuilder()
+    {
+    }
+
+    public AstBuilder(boolean caseSensitive)
+    {
+        this.caseSensitive = caseSensitive;
+    }
+
     @Override
     public Node visitSingleStatement(SqlBaseParser.SingleStatementContext context)
     {
@@ -345,7 +356,7 @@ class AstBuilder
     public Node visitRollup(SqlBaseParser.RollupContext context)
     {
         return new Rollup(getLocation(context), context.qualifiedName().stream()
-                .map(AstBuilder::getQualifiedName)
+                .map(this::getQualifiedName)
                 .collect(toList()));
     }
 
@@ -353,7 +364,7 @@ class AstBuilder
     public Node visitCube(SqlBaseParser.CubeContext context)
     {
         return new Cube(getLocation(context), context.qualifiedName().stream()
-                .map(AstBuilder::getQualifiedName)
+                .map(this::getQualifiedName)
                 .collect(toList()));
     }
 
@@ -362,7 +373,7 @@ class AstBuilder
     {
         return new GroupingSets(getLocation(context), context.groupingSet().stream()
                 .map(groupingSet -> groupingSet.qualifiedName().stream()
-                        .map(AstBuilder::getQualifiedName)
+                        .map(this::getQualifiedName)
                         .collect(toList()))
                 .collect(toList()));
     }
@@ -461,7 +472,7 @@ class AstBuilder
         return new ShowTables(
                 getLocation(context),
                 Optional.ofNullable(context.qualifiedName())
-                        .map(AstBuilder::getQualifiedName),
+                        .map(this::getQualifiedName),
                 getTextIfPresent(context.pattern)
                         .map(AstBuilder::unquote));
     }
@@ -907,13 +918,13 @@ class AstBuilder
     @Override
     public Node visitDereference(SqlBaseParser.DereferenceContext context)
     {
-        return new DereferenceExpression(getLocation(context), (Expression) visit(context.base), context.fieldName.getText());
+        return new DereferenceExpression(getLocation(context), (Expression) visit(context.base), context.fieldName.getText(), caseSensitive);
     }
 
     @Override
     public Node visitColumnReference(SqlBaseParser.ColumnReferenceContext context)
     {
-        return new QualifiedNameReference(getLocation(context), new QualifiedName(context.getText()));
+        return new QualifiedNameReference(getLocation(context), new QualifiedName(context.getText(), caseSensitive));
     }
 
     @Override
@@ -1168,14 +1179,14 @@ class AstBuilder
                 .replace("''", "'");
     }
 
-    private static QualifiedName getQualifiedName(SqlBaseParser.QualifiedNameContext context)
+    private QualifiedName getQualifiedName(SqlBaseParser.QualifiedNameContext context)
     {
         List<String> parts = context
                 .identifier().stream()
                 .map(ParseTree::getText)
                 .collect(toList());
 
-        return new QualifiedName(parts);
+        return new QualifiedName(parts, caseSensitive);
     }
 
     private static boolean isDistinct(SqlBaseParser.SetQuantifierContext setQuantifier)

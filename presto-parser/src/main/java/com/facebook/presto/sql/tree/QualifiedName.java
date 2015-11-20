@@ -43,12 +43,28 @@ public class QualifiedName
         this(ImmutableList.of(name));
     }
 
+    public QualifiedName(String name, boolean caseSensitive)
+    {
+        this(ImmutableList.of(name), caseSensitive);
+    }
+
     public QualifiedName(Iterable<String> parts)
+    {
+        this(parts, false);
+    }
+
+    public QualifiedName(Iterable<String> parts, boolean caseSensitive)
     {
         requireNonNull(parts, "parts is null");
         checkArgument(!isEmpty(parts), "parts is empty");
-        this.parts = ImmutableList.copyOf(transform(parts, part -> part.toLowerCase(ENGLISH)));
-        this.originalParts = ImmutableList.copyOf(parts);
+        if (caseSensitive) {
+            this.parts = ImmutableList.copyOf(parts);
+            this.originalParts = this.parts;
+        }
+        else {
+            this.parts = ImmutableList.copyOf(transform(parts, part -> part.toLowerCase(ENGLISH)));
+            this.originalParts = ImmutableList.copyOf(parts);
+        }
     }
 
     public List<String> getParts()

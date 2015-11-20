@@ -29,21 +29,30 @@ public class DereferenceExpression
 
     public DereferenceExpression(Expression base, String fieldName)
     {
-        this(Optional.empty(), base, fieldName);
+        this(Optional.empty(), base, fieldName, false);
     }
 
     public DereferenceExpression(NodeLocation location, Expression base, String fieldName)
     {
-        this(Optional.of(location), base, fieldName);
+        this(Optional.of(location), base, fieldName, false);
     }
 
-    private DereferenceExpression(Optional<NodeLocation> location, Expression base, String fieldName)
+    public DereferenceExpression(NodeLocation location, Expression base, String fieldName, boolean caseSensitive)
+    {
+        this(Optional.of(location), base, fieldName, caseSensitive);
+    }
+
+    private DereferenceExpression(Optional<NodeLocation> location, Expression base, String fieldName, boolean caseSensitive)
     {
         super(location);
         checkArgument(base != null, "base is null");
         checkArgument(fieldName != null, "fieldName is null");
         this.base = base;
-        this.fieldName = fieldName.toLowerCase();
+        if (caseSensitive) {
+            this.fieldName = fieldName;
+        } else {
+            this.fieldName = fieldName.toLowerCase();
+        }
     }
 
     @Override

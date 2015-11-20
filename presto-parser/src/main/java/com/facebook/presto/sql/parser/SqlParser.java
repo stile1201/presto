@@ -48,6 +48,7 @@ public class SqlParser
     };
 
     private final EnumSet<IdentifierSymbol> allowedIdentifierSymbols;
+    private final boolean caseSensitive;
 
     public SqlParser()
     {
@@ -59,6 +60,7 @@ public class SqlParser
     {
         requireNonNull(options, "options is null");
         allowedIdentifierSymbols = EnumSet.copyOf(options.getAllowedIdentifierSymbols());
+        caseSensitive = options.isCaseSensitive();
     }
 
     public Statement createStatement(String sql)
@@ -101,7 +103,7 @@ public class SqlParser
                 tree = parseFunction.apply(parser);
             }
 
-            return new AstBuilder().visit(tree);
+            return new AstBuilder(caseSensitive).visit(tree);
         }
         catch (StackOverflowError e) {
             throw new ParsingException(name + " is too large (stack overflow while parsing)");

@@ -22,6 +22,7 @@ import static java.util.Objects.requireNonNull;
 public class SqlParserOptions
 {
     private EnumSet<IdentifierSymbol> allowedIdentifierSymbols = EnumSet.noneOf(IdentifierSymbol.class);
+    private boolean caseSensitive;
 
     public SqlParserOptions allowIdentifierSymbol(Iterable<IdentifierSymbol> identifierSymbols)
     {
@@ -40,5 +41,15 @@ public class SqlParserOptions
             allowedIdentifierSymbols.add(requireNonNull(identifierSymbol, "identifierSymbol is null"));
         }
         return this;
+    }
+
+    public boolean isCaseSensitive()
+    {
+        return caseSensitive;
+    }
+
+    public void setCaseSensitive(boolean caseSensitive)
+    {
+        this.caseSensitive = caseSensitive;
     }
 }
