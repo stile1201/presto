@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.cmm.presto</groupId>
         <artifactId>presto-root</artifactId>
-        <version>0.127-SNAPSHOT-CUSTOM</version>
+        <version>0.127-CUSTOM-SNAPSHOT</version>
     </parent>
 
     <artifactId>presto-jmx</artifactId>

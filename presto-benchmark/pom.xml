@@ -5,7 +5,7 @@
     <parent>
         <artifactId>presto-root</artifactId>
         <groupId>com.cmm.presto</groupId>
-        <version>0.127-SNAPSHOT-CUSTOM</version>
+        <version>0.127-CUSTOM-SNAPSHOT</version>
     </parent>
 
     <artifactId>presto-benchmark</artifactId>

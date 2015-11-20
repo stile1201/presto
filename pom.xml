@@ -10,7 +10,7 @@
 
     <groupId>com.cmm.presto</groupId>
     <artifactId>presto-root</artifactId>
-    <version>0.127-SNAPSHOT-CUSTOM</version>
+    <version>0.127-CUSTOM-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>presto-root</name>
@@ -985,4 +985,17 @@
             </build>
         </profile>
     </profiles>
+
+    <distributionManagement>
+        <repository>
+            <id>cmm-deployment</id>
+            <name>CMM Releases</name>
+            <url>http://www.claymoreminds.com/nexus/content/repositories/releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>cmm-deployment</id>
+            <name>CMM Snapshots</name>
+            <url>http://www.claymoreminds.com/nexus/content/repositories/snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
 </project>
