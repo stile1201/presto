@@ -4,8 +4,8 @@
 
     <parent>
         <artifactId>presto-root</artifactId>
-        <groupId>com.facebook.presto</groupId>
-        <version>0.127-SNAPSHOT</version>
+        <groupId>com.cmm.presto</groupId>
+        <version>0.127-SNAPSHOT-CUSTOM</version>
     </parent>
 
     <artifactId>presto-tests</artifactId>
@@ -17,27 +17,27 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-client</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-parser</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-main</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-spi</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-tpch</artifactId>
         </dependency>
 

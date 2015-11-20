@@ -3,9 +3,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.facebook.presto</groupId>
+        <groupId>com.cmm.presto</groupId>
         <artifactId>presto-root</artifactId>
-        <version>0.127-SNAPSHOT</version>
+        <version>0.127-SNAPSHOT-CUSTOM</version>
     </parent>
 
     <artifactId>presto-docs</artifactId>

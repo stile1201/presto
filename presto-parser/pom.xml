@@ -3,9 +3,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.facebook.presto</groupId>
+        <groupId>com.cmm.presto</groupId>
         <artifactId>presto-root</artifactId>
-        <version>0.127-SNAPSHOT</version>
+        <version>0.127-SNAPSHOT-CUSTOM</version>
     </parent>
 
     <artifactId>presto-parser</artifactId>
@@ -67,4 +67,17 @@
             </plugin>
         </plugins>
     </build>
+
+    <distributionManagement>
+        <repository>
+            <id>cmm-deployment</id>
+            <name>CMM Releases</name>
+            <url>http://www.claymoreminds.com/nexus/content/repositories/releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>cmm-deployment</id>
+            <name>CMM Snapshots</name>
+            <url>http://www.claymoreminds.com/nexus/content/repositories/snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
 </project>

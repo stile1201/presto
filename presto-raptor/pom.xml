@@ -3,9 +3,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.facebook.presto</groupId>
+        <groupId>com.cmm.presto</groupId>
         <artifactId>presto-root</artifactId>
-        <version>0.127-SNAPSHOT</version>
+        <version>0.127-SNAPSHOT-CUSTOM</version>
     </parent>
 
     <artifactId>presto-raptor</artifactId>
@@ -28,7 +28,7 @@
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-orc</artifactId>
         </dependency>
 
@@ -129,7 +129,7 @@
 
         <!-- Presto SPI -->
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-spi</artifactId>
             <scope>provided</scope>
         </dependency>
@@ -178,39 +178,39 @@
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-client</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-main</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-main</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-tests</artifactId>
             <scope>test</scope>
         </dependency>
 
         <!-- for benchmark -->
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-benchmark</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>com.cmm.presto</groupId>
             <artifactId>presto-tpch</artifactId>
             <scope>test</scope>
         </dependency>

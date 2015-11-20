@@ -50,7 +50,8 @@ public class DereferenceExpression
         this.base = base;
         if (caseSensitive) {
             this.fieldName = fieldName;
-        } else {
+        }
+        else {
             this.fieldName = fieldName.toLowerCase();
         }
     }
