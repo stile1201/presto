@@ -558,10 +558,6 @@ public final class ExpressionFormatter
         }
     }
 
-    private class Blah extends Formatter {
-
-    }
-
     static String formatStringLiteral(String s)
     {
         return "'" + s.replace("'", "''") + "'";
