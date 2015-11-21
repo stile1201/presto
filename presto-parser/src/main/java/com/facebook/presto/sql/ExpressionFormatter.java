@@ -245,7 +245,7 @@ public final class ExpressionFormatter
             return baseString + "." + formatIdentifier(node.getFieldName());
         }
 
-        private static String formatQualifiedName(QualifiedName name)
+        private String formatQualifiedName(QualifiedName name)
         {
             List<String> parts = new ArrayList<>();
             for (String part : name.getParts()) {
@@ -551,11 +551,15 @@ public final class ExpressionFormatter
                     .iterator());
         }
 
-        private static String formatIdentifier(String s)
+        protected String formatIdentifier(String s)
         {
             // TODO: handle escaping properly
             return '"' + s + '"';
         }
+    }
+
+    private class Blah extends Formatter {
+
     }
 
     static String formatStringLiteral(String s)
