@@ -3,9 +3,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.facebook.presto</groupId>
+        <groupId>uk.co.nichesolutions.presto</groupId>
         <artifactId>presto-root</artifactId>
-        <version>0.143-SNAPSHOT</version>
+        <version>0.143-CUSTOM-SNAPSHOT</version>
     </parent>
 
     <artifactId>presto-main</artifactId>
@@ -27,22 +27,22 @@
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>uk.co.nichesolutions.presto</groupId>
             <artifactId>presto-spi</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>uk.co.nichesolutions.presto</groupId>
             <artifactId>presto-client</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>uk.co.nichesolutions.presto</groupId>
             <artifactId>presto-parser</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>uk.co.nichesolutions.presto</groupId>
             <artifactId>presto-bytecode</artifactId>
         </dependency>
 
@@ -267,13 +267,13 @@
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>uk.co.nichesolutions.presto</groupId>
             <artifactId>presto-tpch</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>uk.co.nichesolutions.presto</groupId>
             <artifactId>presto-parser</artifactId>
             <type>test-jar</type>
             <scope>test</scope>

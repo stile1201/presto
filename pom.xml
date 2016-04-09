@@ -8,9 +8,9 @@
         <version>49</version>
     </parent>
 
-    <groupId>com.facebook.presto</groupId>
+    <groupId>uk.co.nichesolutions.presto</groupId>
     <artifactId>presto-root</artifactId>
-    <version>0.143-SNAPSHOT</version>
+    <version>0.143-CUSTOM-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>presto-root</name>
@@ -104,156 +104,156 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-spi</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-record-decoder</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-orc</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-hive</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-hive-cdh4</artifactId>
                 <version>${project.version}</version>
                 <type>zip</type>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-example-http</artifactId>
                 <version>${project.version}</version>
                 <type>zip</type>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-hive</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-tpch</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-blackhole</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-base-jdbc</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-mysql</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-raptor</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-cli</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-bytecode</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-parser</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-parser</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-main</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-main</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-jdbc</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-server-rpm</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-tests</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-benchmark</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.facebook.presto</groupId>
+                <groupId>uk.co.nichesolutions.presto</groupId>
                 <artifactId>presto-product-tests</artifactId>
                 <version>${project.version}</version>
             </dependency>

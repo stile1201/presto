@@ -4,8 +4,8 @@
 
     <parent>
         <artifactId>presto-root</artifactId>
-        <groupId>com.facebook.presto</groupId>
-        <version>0.143-SNAPSHOT</version>
+        <groupId>uk.co.nichesolutions.presto</groupId>
+        <version>0.143-CUSTOM-SNAPSHOT</version>
     </parent>
 
     <artifactId>presto-product-tests</artifactId>
@@ -18,11 +18,11 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>uk.co.nichesolutions.presto</groupId>
             <artifactId>presto-jdbc</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>uk.co.nichesolutions.presto</groupId>
             <artifactId>presto-main</artifactId>
         </dependency>
         <dependency>
@@ -34,7 +34,7 @@
             <artifactId>tempto-runner</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>uk.co.nichesolutions.presto</groupId>
             <artifactId>presto-cli</artifactId>
         </dependency>
         <dependency>
