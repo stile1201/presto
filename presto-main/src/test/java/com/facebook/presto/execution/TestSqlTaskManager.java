@@ -15,7 +15,6 @@ package com.facebook.presto.execution;
 
 import com.facebook.presto.ScheduledSplit;
 import com.facebook.presto.TaskSource;
-import com.facebook.presto.UnpartitionedPagePartitionFunction;
 import com.facebook.presto.client.NodeVersion;
 import com.facebook.presto.event.query.QueryMonitor;
 import com.facebook.presto.memory.LocalMemoryManager;
@@ -36,6 +35,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 
 import java.net.URI;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.facebook.presto.OutputBuffers.INITIAL_EMPTY_OUTPUT_BUFFERS;
@@ -80,7 +80,7 @@ public class TestSqlTaskManager
             TaskId taskId = TASK_ID;
             TaskInfo taskInfo = sqlTaskManager.updateTask(TEST_SESSION,
                     taskId,
-                    PLAN_FRAGMENT,
+                    Optional.of(PLAN_FRAGMENT),
                     ImmutableList.<TaskSource>of(),
                     INITIAL_EMPTY_OUTPUT_BUFFERS);
             assertEquals(taskInfo.getState(), TaskState.RUNNING);
@@ -90,7 +90,7 @@ public class TestSqlTaskManager
 
             taskInfo = sqlTaskManager.updateTask(TEST_SESSION,
                     taskId,
-                    PLAN_FRAGMENT,
+                    Optional.of(PLAN_FRAGMENT),
                     ImmutableList.of(new TaskSource(TABLE_SCAN_NODE_ID, ImmutableSet.<ScheduledSplit>of(), true)),
                     INITIAL_EMPTY_OUTPUT_BUFFERS.withNoMoreBufferIds());
             assertEquals(taskInfo.getState(), TaskState.FINISHED);
@@ -108,9 +108,9 @@ public class TestSqlTaskManager
             TaskId taskId = TASK_ID;
             TaskInfo taskInfo = sqlTaskManager.updateTask(TEST_SESSION,
                     taskId,
-                    PLAN_FRAGMENT,
+                    Optional.of(PLAN_FRAGMENT),
                     ImmutableList.of(new TaskSource(TABLE_SCAN_NODE_ID, ImmutableSet.of(SPLIT), true)),
-                    INITIAL_EMPTY_OUTPUT_BUFFERS.withBuffer(OUT, new UnpartitionedPagePartitionFunction()).withNoMoreBufferIds());
+                    INITIAL_EMPTY_OUTPUT_BUFFERS.withBuffer(OUT, 0).withNoMoreBufferIds());
             assertEquals(taskInfo.getState(), TaskState.RUNNING);
 
             taskInfo = sqlTaskManager.getTaskInfo(taskId);
@@ -144,7 +144,7 @@ public class TestSqlTaskManager
             TaskId taskId = TASK_ID;
             TaskInfo taskInfo = sqlTaskManager.updateTask(TEST_SESSION,
                     taskId,
-                    PLAN_FRAGMENT,
+                    Optional.of(PLAN_FRAGMENT),
                     ImmutableList.<TaskSource>of(),
                     INITIAL_EMPTY_OUTPUT_BUFFERS);
             assertEquals(taskInfo.getState(), TaskState.RUNNING);
@@ -172,7 +172,7 @@ public class TestSqlTaskManager
             TaskId taskId = TASK_ID;
             TaskInfo taskInfo = sqlTaskManager.updateTask(TEST_SESSION,
                     taskId,
-                    PLAN_FRAGMENT,
+                    Optional.of(PLAN_FRAGMENT),
                     ImmutableList.<TaskSource>of(),
                     INITIAL_EMPTY_OUTPUT_BUFFERS);
             assertEquals(taskInfo.getState(), TaskState.RUNNING);
@@ -200,9 +200,9 @@ public class TestSqlTaskManager
             TaskId taskId = TASK_ID;
             TaskInfo taskInfo = sqlTaskManager.updateTask(TEST_SESSION,
                     taskId,
-                    PLAN_FRAGMENT,
+                    Optional.of(PLAN_FRAGMENT),
                     ImmutableList.of(new TaskSource(TABLE_SCAN_NODE_ID, ImmutableSet.of(SPLIT), true)),
-                    INITIAL_EMPTY_OUTPUT_BUFFERS.withBuffer(OUT, new UnpartitionedPagePartitionFunction()).withNoMoreBufferIds());
+                    INITIAL_EMPTY_OUTPUT_BUFFERS.withBuffer(OUT, 0).withNoMoreBufferIds());
             assertEquals(taskInfo.getState(), TaskState.RUNNING);
 
             taskInfo = sqlTaskManager.getTaskInfo(taskId);
@@ -227,7 +227,7 @@ public class TestSqlTaskManager
 
             TaskInfo taskInfo = sqlTaskManager.updateTask(TEST_SESSION,
                     taskId,
-                    PLAN_FRAGMENT,
+                    Optional.of(PLAN_FRAGMENT),
                     ImmutableList.<TaskSource>of(),
                     INITIAL_EMPTY_OUTPUT_BUFFERS);
             assertEquals(taskInfo.getState(), TaskState.RUNNING);

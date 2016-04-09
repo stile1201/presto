@@ -40,6 +40,7 @@ import static io.airlift.units.DataSize.Unit.MEGABYTE;
 @DefunctConfig({
         "hive.file-system-cache-ttl",
         "hive.max-global-split-iterator-threads",
+        "hive.optimized-reader.enabled"
 })
 public class HiveClientConfig
 {
@@ -83,6 +84,7 @@ public class HiveClientConfig
     private String s3AwsSecretKey;
     private boolean s3UseInstanceCredentials = true;
     private boolean s3SslEnabled = true;
+    private boolean s3SseEnabled;
     private int s3MaxClientRetries = 3;
     private int s3MaxErrorRetries = 10;
     private Duration s3MaxBackoffTime = new Duration(10, TimeUnit.MINUTES);
@@ -94,21 +96,23 @@ public class HiveClientConfig
     private DataSize s3MultipartMinFileSize = new DataSize(16, MEGABYTE);
     private DataSize s3MultipartMinPartSize = new DataSize(5, MEGABYTE);
     private boolean useParquetColumnNames;
+    private boolean pinS3ClientToCurrentRegion;
 
     private HiveStorageFormat hiveStorageFormat = HiveStorageFormat.RCBINARY;
+    private HiveCompressionCodec hiveCompressionCodec = HiveCompressionCodec.GZIP;
     private boolean respectTableFormat = true;
     private boolean immutablePartitions;
     private int maxPartitionsPerWriter = 100;
 
     private List<String> resourceConfigFiles;
 
-    private boolean optimizedReaderEnabled = true;
     private boolean parquetOptimizedReaderEnabled;
 
     private boolean parquetPredicatePushdownEnabled;
 
     private boolean assumeCanonicalPartitionKeys;
 
+    private boolean useOrcColumnNames;
     private DataSize orcMaxMergeDistance = new DataSize(1, MEGABYTE);
     private DataSize orcMaxBufferSize = new DataSize(8, MEGABYTE);
     private DataSize orcStreamBufferSize = new DataSize(8, MEGABYTE);
@@ -476,6 +480,18 @@ public class HiveClientConfig
         return this;
     }
 
+    public HiveCompressionCodec getHiveCompressionCodec()
+    {
+        return hiveCompressionCodec;
+    }
+
+    @Config("hive.compression-codec")
+    public HiveClientConfig setHiveCompressionCodec(HiveCompressionCodec hiveCompressionCodec)
+    {
+        this.hiveCompressionCodec = hiveCompressionCodec;
+        return this;
+    }
+
     public boolean isRespectTableFormat()
     {
         return respectTableFormat;
@@ -586,6 +602,19 @@ public class HiveClientConfig
     public HiveClientConfig setS3SslEnabled(boolean s3SslEnabled)
     {
         this.s3SslEnabled = s3SslEnabled;
+        return this;
+    }
+
+    public boolean isS3SseEnabled()
+    {
+        return s3SseEnabled;
+    }
+
+    @Config("hive.s3.sse.enabled")
+    @ConfigDescription("Enable S3 server side encryption")
+    public HiveClientConfig setS3SseEnabled(boolean s3SseEnabled)
+    {
+        this.s3SseEnabled = s3SseEnabled;
         return this;
     }
 
@@ -728,17 +757,16 @@ public class HiveClientConfig
         return this;
     }
 
-    @Deprecated
-    public boolean isOptimizedReaderEnabled()
+    public boolean isPinS3ClientToCurrentRegion()
     {
-        return optimizedReaderEnabled;
+        return pinS3ClientToCurrentRegion;
     }
 
-    @Deprecated
-    @Config("hive.optimized-reader.enabled")
-    public HiveClientConfig setOptimizedReaderEnabled(boolean optimizedReaderEnabled)
+    @Config("hive.s3.pin-client-to-current-region")
+    @ConfigDescription("Should the S3 client be pinned to the current EC2 region")
+    public HiveClientConfig setPinS3ClientToCurrentRegion(boolean pinS3ClientToCurrentRegion)
     {
-        this.optimizedReaderEnabled = optimizedReaderEnabled;
+        this.pinS3ClientToCurrentRegion = pinS3ClientToCurrentRegion;
         return this;
     }
 
@@ -767,6 +795,19 @@ public class HiveClientConfig
     public HiveClientConfig setParquetOptimizedReaderEnabled(boolean parquetOptimizedReaderEnabled)
     {
         this.parquetOptimizedReaderEnabled = parquetOptimizedReaderEnabled;
+        return this;
+    }
+
+    public boolean isUseOrcColumnNames()
+    {
+        return useOrcColumnNames;
+    }
+
+    @Config("hive.orc.use-column-names")
+    @ConfigDescription("Access ORC columns using names from the file")
+    public HiveClientConfig setUseOrcColumnNames(boolean useOrcColumnNames)
+    {
+        this.useOrcColumnNames = useOrcColumnNames;
         return this;
     }
 
@@ -822,7 +863,7 @@ public class HiveClientConfig
     }
 
     public boolean isUseParquetColumnNames()
-   {
+    {
         return useParquetColumnNames;
     }
 

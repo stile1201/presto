@@ -96,7 +96,11 @@ Mathematical Functions
 
 .. function:: random() -> double
 
-    Returns a pseudo-random value in the range 0.0 <= x < 1.0
+    Returns a pseudo-random value in the range 0.0 <= x < 1.0.
+
+.. function:: random(n) -> [same as input]
+
+    Returns a pseudo-random number between 0 and n (exclusive).
 
 .. function:: round(x) -> [same as input]
 
@@ -178,3 +182,8 @@ Floating Point Functions
 .. function:: nan() -> double
 
     Returns the constant representing not-a-number.
+
+.. function:: width_bucket(x, bound1, bound2, n) -> bigint
+
+    Returns the bin number of ``x`` in an equi-width histogram with the
+    specified ``bound1`` and ``bound2`` bounds and ``n`` number of buckets.

@@ -13,6 +13,8 @@
  */
 package com.facebook.presto.sql.planner.plan;
 
+import com.facebook.presto.sql.planner.PartitionFunctionBinding;
+import com.facebook.presto.sql.planner.PartitionFunctionBinding.PartitionFunctionArgumentBinding;
 import com.facebook.presto.sql.planner.Symbol;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -23,6 +25,10 @@ import javax.annotation.concurrent.Immutable;
 import java.util.List;
 import java.util.Optional;
 
+import static com.facebook.presto.sql.planner.SystemPartitioningHandle.FIXED_BROADCAST_DISTRIBUTION;
+import static com.facebook.presto.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
+import static com.facebook.presto.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
+import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
@@ -34,16 +40,14 @@ public class ExchangeNode
     {
         GATHER,
         REPARTITION,
-        REPARTITION_WITH_NULL_REPLICATION,
         REPLICATE
     }
 
     private final Type type;
-    private final List<Symbol> outputs;
 
     private final List<PlanNode> sources;
-    private final Optional<List<Symbol>> partitionKeys;
-    private final Optional<Symbol> hashSymbol;
+
+    private final PartitionFunctionBinding partitionFunction;
 
     // for each source, the list of inputs corresponding to each output
     private final List<List<Symbol>> inputs;
@@ -52,23 +56,18 @@ public class ExchangeNode
     public ExchangeNode(
             @JsonProperty("id") PlanNodeId id,
             @JsonProperty("type") Type type,
-            @JsonProperty("partitionKeys") Optional<List<Symbol>> partitionKeys,
-            @JsonProperty("hashSymbol") Optional<Symbol> hashSymbol,
+            @JsonProperty("partitionFunction") PartitionFunctionBinding partitionFunction,
             @JsonProperty("sources") List<PlanNode> sources,
-            @JsonProperty("outputs") List<Symbol> outputs,
             @JsonProperty("inputs") List<List<Symbol>> inputs)
     {
         super(id);
 
         requireNonNull(type, "type is null");
         requireNonNull(sources, "sources is null");
-        requireNonNull(partitionKeys, "partitionKeys is null");
-        requireNonNull(hashSymbol, "hashSymbol is null");
-        requireNonNull(outputs, "outputs is null");
+        requireNonNull(partitionFunction, "partitionFunction is null");
         requireNonNull(inputs, "inputs is null");
-        partitionKeys.ifPresent(list -> checkArgument(outputs.containsAll(list), "outputs must contain all partitionKeys"));
-        checkArgument(!hashSymbol.isPresent() || outputs.contains(hashSymbol.get()), "outputs must contain hashSymbol");
-        checkArgument(inputs.stream().allMatch(inputSymbols -> inputSymbols.size() == outputs.size()), "Input symbols do not match output symbols");
+
+        checkArgument(inputs.stream().allMatch(inputSymbols -> inputSymbols.size() == partitionFunction.getOutputLayout().size()), "Input symbols do not match output symbols");
         checkArgument(inputs.size() == sources.size(), "Must have same number of input lists as sources");
         for (int i = 0; i < inputs.size(); i++) {
             checkArgument(sources.get(i).getOutputSymbols().containsAll(inputs.get(i)), "Source does not supply all required input symbols");
@@ -76,33 +75,41 @@ public class ExchangeNode
 
         this.type = type;
         this.sources = sources;
-        this.partitionKeys = partitionKeys.map(ImmutableList::copyOf);
-        this.hashSymbol = hashSymbol;
-        this.outputs = ImmutableList.copyOf(outputs);
+        this.partitionFunction = partitionFunction;
         this.inputs = ImmutableList.copyOf(inputs);
     }
 
-    public static ExchangeNode partitionedExchangeNullReplicate(PlanNodeId id, PlanNode child, Symbol partitionKey, Optional<Symbol> hashSymbol)
+    public static ExchangeNode partitionedExchange(PlanNodeId id, PlanNode child, List<Symbol> partitioningColumns, Optional<Symbol> hashColumns)
     {
-        return new ExchangeNode(
+        return partitionedExchange(
                 id,
-                ExchangeNode.Type.REPARTITION_WITH_NULL_REPLICATION,
-                Optional.of(ImmutableList.of(partitionKey)),
-                hashSymbol,
-                ImmutableList.of(child),
-                child.getOutputSymbols(),
-                ImmutableList.of(child.getOutputSymbols()));
+                child,
+                new PartitionFunctionBinding(
+                        FIXED_HASH_DISTRIBUTION,
+                        child.getOutputSymbols(),
+                        partitioningColumns.stream()
+                                .map(PartitionFunctionArgumentBinding::new)
+                                .collect(toImmutableList()),
+                        hashColumns));
     }
 
-    public static ExchangeNode partitionedExchange(PlanNodeId id, PlanNode child, Optional<List<Symbol>> partitionKeys, Optional<Symbol> hashSymbol)
+    public static ExchangeNode partitionedExchange(PlanNodeId id, PlanNode child, PartitionFunctionBinding partitionFunction)
     {
         return new ExchangeNode(
                 id,
                 ExchangeNode.Type.REPARTITION,
-                partitionKeys,
-                hashSymbol,
+                partitionFunction,
                 ImmutableList.of(child),
-                child.getOutputSymbols(),
+                ImmutableList.of(child.getOutputSymbols()));
+    }
+
+    public static ExchangeNode replicatedExchange(PlanNodeId id, PlanNode child)
+    {
+        return new ExchangeNode(
+                id,
+                ExchangeNode.Type.REPLICATE,
+                new PartitionFunctionBinding(FIXED_BROADCAST_DISTRIBUTION, child.getOutputSymbols(), ImmutableList.of()),
+                ImmutableList.of(child),
                 ImmutableList.of(child.getOutputSymbols()));
     }
 
@@ -111,11 +118,21 @@ public class ExchangeNode
         return new ExchangeNode(
                 id,
                 ExchangeNode.Type.GATHER,
-                Optional.empty(),
-                Optional.<Symbol>empty(),
+                new PartitionFunctionBinding(SINGLE_DISTRIBUTION, child.getOutputSymbols(), ImmutableList.of()),
                 ImmutableList.of(child),
-                child.getOutputSymbols(),
                 ImmutableList.of(child.getOutputSymbols()));
+    }
+
+    public static ExchangeNode gatheringExchange(PlanNodeId id, List<Symbol> outputLayout, List<PlanNode> children)
+    {
+        return new ExchangeNode(
+                id,
+                ExchangeNode.Type.GATHER,
+                new PartitionFunctionBinding(SINGLE_DISTRIBUTION, outputLayout, ImmutableList.of()),
+                children,
+                children.stream()
+                        .map(PlanNode::getOutputSymbols)
+                        .collect(toImmutableList()));
     }
 
     @JsonProperty
@@ -131,22 +148,15 @@ public class ExchangeNode
     }
 
     @Override
-    @JsonProperty("outputs")
     public List<Symbol> getOutputSymbols()
     {
-        return outputs;
+        return partitionFunction.getOutputLayout();
     }
 
     @JsonProperty
-    public Optional<List<Symbol>> getPartitionKeys()
+    public PartitionFunctionBinding getPartitionFunction()
     {
-        return partitionKeys;
-    }
-
-    @JsonProperty
-    public Optional<Symbol> getHashSymbol()
-    {
-        return hashSymbol;
+        return partitionFunction;
     }
 
     @JsonProperty

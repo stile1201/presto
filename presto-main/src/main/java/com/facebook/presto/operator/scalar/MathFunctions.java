@@ -23,6 +23,7 @@ import io.airlift.slice.Slice;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static com.facebook.presto.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
+import static com.facebook.presto.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static com.facebook.presto.util.Failures.checkCondition;
 import static io.airlift.slice.Slices.utf8Slice;
 import static java.lang.Character.MAX_RADIX;
@@ -38,6 +39,7 @@ public final class MathFunctions
     @SqlType(StandardTypes.BIGINT)
     public static long abs(@SqlType(StandardTypes.BIGINT) long num)
     {
+        checkCondition(num != Long.MIN_VALUE, NUMERIC_VALUE_OUT_OF_RANGE, "Value -9223372036854775808 is out of range for abs()");
         return Math.abs(num);
     }
 
@@ -241,6 +243,15 @@ public final class MathFunctions
         return ThreadLocalRandom.current().nextDouble();
     }
 
+    @Description("a pseudo-random number between 0 and value (exclusive)")
+    @ScalarFunction(alias = "rand", deterministic = false)
+    @SqlType(StandardTypes.BIGINT)
+    public static long random(@SqlType(StandardTypes.BIGINT) long value)
+    {
+        checkCondition(value > 0, INVALID_FUNCTION_ARGUMENT, "bound must be positive");
+        return ThreadLocalRandom.current().nextLong(value);
+    }
+
     @Description("round to nearest integer")
     @ScalarFunction
     @SqlType(StandardTypes.BIGINT)
@@ -380,5 +391,43 @@ public final class MathFunctions
     {
         checkCondition(radix >= MIN_RADIX && radix <= MAX_RADIX,
                 INVALID_FUNCTION_ARGUMENT, "Radix must be between %d and %d", MIN_RADIX, MAX_RADIX);
+    }
+
+    @Description("The bucket number of a value given a lower and upper bound and the number of buckets")
+    @ScalarFunction("width_bucket")
+    @SqlType(StandardTypes.BIGINT)
+    public static long widthBucket(@SqlType(StandardTypes.DOUBLE) double operand, @SqlType(StandardTypes.DOUBLE) double bound1, @SqlType(StandardTypes.DOUBLE) double bound2, @SqlType(StandardTypes.BIGINT) long bucketCount)
+    {
+        checkCondition(bucketCount > 0, INVALID_FUNCTION_ARGUMENT, "bucketCount must be greater than 0");
+        checkCondition(!isNaN(operand), INVALID_FUNCTION_ARGUMENT, "operand must not be NaN");
+        checkCondition(isFinite(bound1), INVALID_FUNCTION_ARGUMENT, "first bound must be finite");
+        checkCondition(isFinite(bound2), INVALID_FUNCTION_ARGUMENT, "second bound must be finite");
+        checkCondition(bound1 != bound2, INVALID_FUNCTION_ARGUMENT, "bounds cannot equal each other");
+
+        long result = 0;
+
+        double lower = Math.min(bound1, bound2);
+        double upper = Math.max(bound1, bound2);
+
+        if (operand < lower) {
+            result = 0;
+        }
+        else if (operand >= upper) {
+            try {
+                result = Math.addExact(bucketCount, 1);
+            }
+            catch (ArithmeticException e) {
+                throw new PrestoException(NUMERIC_VALUE_OUT_OF_RANGE, format("Bucket for value %s is out of range", operand));
+            }
+        }
+        else {
+            result = (long) ((double) bucketCount * (operand - lower) / (upper - lower) + 1);
+        }
+
+        if (bound1 > bound2) {
+            result = (bucketCount - result) + 1;
+        }
+
+        return result;
     }
 }

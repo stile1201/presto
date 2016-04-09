@@ -16,7 +16,7 @@ package com.facebook.presto.server;
 import com.facebook.presto.OutputBuffers;
 import com.facebook.presto.Session;
 import com.facebook.presto.execution.LocationFactory;
-import com.facebook.presto.execution.NodeTaskMap.SplitCountChangeListener;
+import com.facebook.presto.execution.NodeTaskMap.PartitionedSplitCountTracker;
 import com.facebook.presto.execution.QueryManagerConfig;
 import com.facebook.presto.execution.RemoteTask;
 import com.facebook.presto.execution.RemoteTaskFactory;
@@ -37,6 +37,7 @@ import io.airlift.units.Duration;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
+import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 
 import java.util.concurrent.Executor;
@@ -57,6 +58,7 @@ public class HttpRemoteTaskFactory
     private final JsonCodec<TaskUpdateRequest> taskUpdateRequestCodec;
     private final Duration minErrorDuration;
     private final Duration taskInfoRefreshMaxWait;
+    private final ExecutorService coreExecutor;
     private final Executor executor;
     private final ThreadPoolExecutorMBean executorMBean;
     private final ScheduledExecutorService errorScheduledExecutor;
@@ -75,7 +77,7 @@ public class HttpRemoteTaskFactory
         this.taskUpdateRequestCodec = taskUpdateRequestCodec;
         this.minErrorDuration = config.getRemoteTaskMinErrorDuration();
         this.taskInfoRefreshMaxWait = taskConfig.getInfoRefreshMaxWait();
-        ExecutorService coreExecutor = newCachedThreadPool(daemonThreadsNamed("remote-task-callback-%s"));
+        this.coreExecutor = newCachedThreadPool(daemonThreadsNamed("remote-task-callback-%s"));
         this.executor = new BoundedExecutor(coreExecutor, config.getRemoteTaskMaxCallbackThreads());
         this.executorMBean = new ThreadPoolExecutorMBean((ThreadPoolExecutor) coreExecutor);
 
@@ -89,18 +91,26 @@ public class HttpRemoteTaskFactory
         return executorMBean;
     }
 
+    @PreDestroy
+    public void stop()
+    {
+        coreExecutor.shutdownNow();
+    }
+
     @Override
     public RemoteTask createRemoteTask(Session session,
             TaskId taskId,
             Node node,
+            int partition,
             PlanFragment fragment,
             Multimap<PlanNodeId, Split> initialSplits,
             OutputBuffers outputBuffers,
-            SplitCountChangeListener splitCountChangeListener)
+            PartitionedSplitCountTracker partitionedSplitCountTracker)
     {
         return new HttpRemoteTask(session,
                 taskId,
                 node.getNodeIdentifier(),
+                partition,
                 locationFactory.createTaskLocation(node, taskId),
                 fragment,
                 initialSplits,
@@ -112,7 +122,7 @@ public class HttpRemoteTaskFactory
                 taskInfoRefreshMaxWait,
                 taskInfoCodec,
                 taskUpdateRequestCodec,
-                splitCountChangeListener
+                partitionedSplitCountTracker
         );
     }
 }

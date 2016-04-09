@@ -3,9 +3,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.cmm.presto</groupId>
+        <groupId>com.facebook.presto</groupId>
         <artifactId>presto-root</artifactId>
-        <version>0.127-CUSTOM-SNAPSHOT</version>
+        <version>0.143-SNAPSHOT</version>
     </parent>
 
     <artifactId>presto-hive</artifactId>
@@ -28,7 +28,7 @@
         </dependency>
 
         <dependency>
-            <groupId>com.cmm.presto</groupId>
+            <groupId>com.facebook.presto</groupId>
             <artifactId>presto-orc</artifactId>
         </dependency>
 
@@ -104,11 +104,6 @@
         </dependency>
 
         <dependency>
-            <groupId>javax.annotation</groupId>
-            <artifactId>javax.annotation-api</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>annotations</artifactId>
         </dependency>
@@ -130,7 +125,18 @@
 
         <dependency>
             <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk</artifactId>
+            <artifactId>aws-java-sdk-core</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>joda-time</groupId>
+                    <artifactId>joda-time</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
             <exclusions>
                 <exclusion>
                     <groupId>joda-time</groupId>
@@ -155,7 +161,7 @@
 
         <!-- Presto SPI -->
         <dependency>
-            <groupId>com.cmm.presto</groupId>
+            <groupId>com.facebook.presto</groupId>
             <artifactId>presto-spi</artifactId>
             <scope>provided</scope>
         </dependency>
@@ -192,19 +198,19 @@
 
         <!-- for testing -->
         <dependency>
-            <groupId>com.cmm.presto</groupId>
+            <groupId>com.facebook.presto</groupId>
             <artifactId>presto-main</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>com.cmm.presto</groupId>
+            <groupId>com.facebook.presto</groupId>
             <artifactId>presto-tests</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>com.cmm.presto</groupId>
+            <groupId>com.facebook.presto</groupId>
             <artifactId>presto-tpch</artifactId>
             <scope>test</scope>
         </dependency>
@@ -235,8 +241,20 @@
 
         <!-- for benchmark -->
         <dependency>
-            <groupId>com.cmm.presto</groupId>
+            <groupId>com.facebook.presto</groupId>
             <artifactId>presto-benchmark</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -19,6 +19,7 @@ import com.facebook.presto.hive.HiveUtil;
 import com.facebook.presto.orc.OrcCorruptionException;
 import com.facebook.presto.orc.OrcDataSource;
 import com.facebook.presto.orc.OrcRecordReader;
+import com.facebook.presto.orc.memory.AggregatedMemoryContext;
 import com.facebook.presto.spi.ConnectorPageSource;
 import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.PrestoException;
@@ -59,8 +60,6 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Maps.uniqueIndex;
-import static java.lang.Math.max;
-import static java.lang.Math.min;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
@@ -78,10 +77,10 @@ public class OrcPageSource
     private final Block[] constantBlocks;
     private final int[] hiveColumnIndexes;
 
-    private long completedBytes;
-
     private int batchId;
     private boolean closed;
+
+    private final AggregatedMemoryContext systemMemoryContext;
 
     public OrcPageSource(
             OrcRecordReader recordReader,
@@ -89,7 +88,8 @@ public class OrcPageSource
             List<HivePartitionKey> partitionKeys,
             List<HiveColumnHandle> columns,
             DateTimeZone hiveStorageTimeZone,
-            TypeManager typeManager)
+            TypeManager typeManager,
+            AggregatedMemoryContext systemMemoryContext)
     {
         this.recordReader = requireNonNull(recordReader, "recordReader is null");
         this.orcDataSource = requireNonNull(orcDataSource, "orcDataSource is null");
@@ -185,6 +185,8 @@ public class OrcPageSource
         }
         types = typesBuilder.build();
         columnNames = namesBuilder.build();
+
+        this.systemMemoryContext = requireNonNull(systemMemoryContext, "systemMemoryContext is null");
     }
 
     @Override
@@ -196,7 +198,7 @@ public class OrcPageSource
     @Override
     public long getCompletedBytes()
     {
-        return completedBytes;
+        return orcDataSource.getReadBytes();
     }
 
     @Override
@@ -232,12 +234,7 @@ public class OrcPageSource
                     blocks[fieldId] = new LazyBlock(batchSize, new OrcBlockLoader(hiveColumnIndexes[fieldId], type));
                 }
             }
-            Page page = new Page(batchSize, blocks);
-
-            long newCompletedBytes = (long) (recordReader.getSplitLength() * recordReader.getProgress());
-            completedBytes = min(recordReader.getSplitLength(), max(completedBytes, newCompletedBytes));
-
-            return page;
+            return new Page(batchSize, blocks);
         }
         catch (PrestoException e) {
             closeWithSuppression(e);
@@ -273,6 +270,12 @@ public class OrcPageSource
                 .add("columnNames", columnNames)
                 .add("types", types)
                 .toString();
+    }
+
+    @Override
+    public long getSystemMemoryUsage()
+    {
+        return systemMemoryContext.getBytes();
     }
 
     protected void closeWithSuppression(Throwable throwable)

@@ -31,7 +31,10 @@ public class StageExecutionPlan
     private final List<StageExecutionPlan> subStages;
     private final Optional<List<String>> fieldNames;
 
-    public StageExecutionPlan(PlanFragment fragment, Optional<SplitSource> dataSource, List<StageExecutionPlan> subStages)
+    public StageExecutionPlan(
+            PlanFragment fragment,
+            Optional<SplitSource> dataSource,
+            List<StageExecutionPlan> subStages)
     {
         this.fragment = requireNonNull(fragment, "fragment is null");
         this.dataSource = requireNonNull(dataSource, "dataSource is null");
@@ -61,6 +64,11 @@ public class StageExecutionPlan
     public List<StageExecutionPlan> getSubStages()
     {
         return subStages;
+    }
+
+    public StageExecutionPlan withBucketToPartition(Optional<int[]> bucketToPartition)
+    {
+        return new StageExecutionPlan(fragment.withBucketToPartition(bucketToPartition), dataSource, subStages);
     }
 
     @Override

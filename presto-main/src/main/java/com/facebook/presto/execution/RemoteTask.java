@@ -17,6 +17,7 @@ import com.facebook.presto.OutputBuffers;
 import com.facebook.presto.execution.StateMachine.StateChangeListener;
 import com.facebook.presto.metadata.Split;
 import com.facebook.presto.sql.planner.plan.PlanNodeId;
+import com.google.common.collect.Multimap;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -26,11 +27,14 @@ public interface RemoteTask
 
     String getNodeId();
 
+    // this is necessary to differentiate two tasks on the same node
+    int getPartition();
+
     TaskInfo getTaskInfo();
 
     void start();
 
-    void addSplits(PlanNodeId sourceId, Iterable<Split> split);
+    void addSplits(Multimap<PlanNodeId, Split> splits);
 
     void noMoreSplits(PlanNodeId sourceId);
 

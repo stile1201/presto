@@ -32,8 +32,8 @@ import static com.facebook.presto.metadata.Signature.internalOperator;
 import static com.facebook.presto.metadata.Signature.orderableTypeParameter;
 import static com.facebook.presto.spi.StandardErrorCode.INTERNAL_ERROR;
 import static com.facebook.presto.spi.type.BooleanType.BOOLEAN;
+import static com.facebook.presto.spi.type.TypeUtils.readNativeValue;
 import static com.facebook.presto.type.ArrayType.ARRAY_NULL_ELEMENT_MSG;
-import static com.facebook.presto.type.TypeUtils.castValue;
 import static com.facebook.presto.type.TypeUtils.checkElementNotNull;
 import static com.facebook.presto.util.Reflection.methodHandle;
 
@@ -45,7 +45,7 @@ public class ArrayGreaterThanOrEqualOperator
 
     private ArrayGreaterThanOrEqualOperator()
     {
-        super(GREATER_THAN_OR_EQUAL, ImmutableList.of(orderableTypeParameter("T")), StandardTypes.BOOLEAN, ImmutableList.of("array<T>", "array<T>"));
+        super(GREATER_THAN_OR_EQUAL, ImmutableList.of(orderableTypeParameter("T")), StandardTypes.BOOLEAN, ImmutableList.of("array(T)", "array(T)"));
     }
 
     @Override
@@ -64,8 +64,8 @@ public class ArrayGreaterThanOrEqualOperator
         while (index < len) {
             checkElementNotNull(leftArray.isNull(index), ARRAY_NULL_ELEMENT_MSG);
             checkElementNotNull(rightArray.isNull(index), ARRAY_NULL_ELEMENT_MSG);
-            Object leftElement = castValue(type, leftArray, index);
-            Object rightElement = castValue(type, rightArray, index);
+            Object leftElement = readNativeValue(type, leftArray, index);
+            Object rightElement = readNativeValue(type, rightArray, index);
             try {
                 if ((boolean) greaterThanFunction.invoke(leftElement, rightElement)) {
                     return true;

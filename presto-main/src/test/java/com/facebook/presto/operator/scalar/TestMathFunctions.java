@@ -17,6 +17,7 @@ import com.facebook.presto.spi.PrestoException;
 import org.testng.annotations.Test;
 
 import static com.facebook.presto.SessionTestUtils.TEST_SESSION;
+import static com.facebook.presto.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.spi.type.BooleanType.BOOLEAN;
 import static com.facebook.presto.spi.type.DoubleType.DOUBLE;
@@ -42,6 +43,7 @@ public class TestMathFunctions
         assertFunction("abs(123.45)", DOUBLE, 123.45);
         assertFunction("abs(-123.45)", DOUBLE, 123.45);
         assertFunction("abs(CAST(NULL AS DOUBLE))", DOUBLE, null);
+        assertInvalidFunction("abs(-9223372036854775807 - if(rand() < 10, 1, 1))", NUMERIC_VALUE_OUT_OF_RANGE);
     }
 
     @Test
@@ -334,6 +336,10 @@ public class TestMathFunctions
         // random is non-deterministic
         functionAssertions.tryEvaluateWithAll("rand()", DOUBLE, TEST_SESSION);
         functionAssertions.tryEvaluateWithAll("random()", DOUBLE, TEST_SESSION);
+        functionAssertions.tryEvaluateWithAll("rand(1000)", BIGINT, TEST_SESSION);
+        functionAssertions.tryEvaluateWithAll("random(2000)", BIGINT, TEST_SESSION);
+
+        assertInvalidFunction("rand(-1)", "bound must be positive");
     }
 
     @Test
@@ -388,7 +394,6 @@ public class TestMathFunctions
             assertFunction("sin(" + doubleValue + ")", DOUBLE, Math.sin(doubleValue));
         }
         assertFunction("sin(NULL)", DOUBLE, null);
-
     }
 
     @Test
@@ -513,5 +518,44 @@ public class TestMathFunctions
         assertInvalidFunction("from_base('Z', 37)", BIGINT, "Radix must be between 2 and 36");
         assertInvalidFunction("from_base('Z', 35)", BIGINT, "Not a valid base-35 number: Z");
         assertInvalidFunction("from_base('9223372036854775808', 10)", BIGINT, "Not a valid base-10 number: 9223372036854775808");
+    }
+
+    @Test
+    public void testWidthBucket()
+    {
+        assertFunction("width_bucket(3.14, 0, 4, 3)", BIGINT, 3);
+        assertFunction("width_bucket(2, 0, 4, 3)", BIGINT, 2);
+        assertFunction("width_bucket(infinity(), 0, 4, 3)", BIGINT, 4);
+        assertFunction("width_bucket(-1, 0, 3.2, 4)", BIGINT, 0);
+
+        // bound1 > bound2 is not symmetric with bound2 > bound1
+        assertFunction("width_bucket(3.14, 4, 0, 3)", BIGINT, 1);
+        assertFunction("width_bucket(2, 4, 0, 3)", BIGINT, 2);
+        assertFunction("width_bucket(infinity(), 4, 0, 3)", BIGINT, 0);
+        assertFunction("width_bucket(-1, 3.2, 0, 4)", BIGINT, 5);
+
+        // failure modes
+        assertInvalidFunction("width_bucket(3.14, 0, 4, 0)", "bucketCount must be greater than 0");
+        assertInvalidFunction("width_bucket(3.14, 0, 4, -1)", "bucketCount must be greater than 0");
+        assertInvalidFunction("width_bucket(nan(), 0, 4, 3)", "operand must not be NaN");
+        assertInvalidFunction("width_bucket(3.14, -1, -1, 3)", "bounds cannot equal each other");
+        assertInvalidFunction("width_bucket(3.14, nan(), -1, 3)", "first bound must be finite");
+        assertInvalidFunction("width_bucket(3.14, -1, nan(), 3)", "second bound must be finite");
+        assertInvalidFunction("width_bucket(3.14, infinity(), -1, 3)", "first bound must be finite");
+        assertInvalidFunction("width_bucket(3.14, -1, infinity(), 3)", "second bound must be finite");
+    }
+
+    @Test(expectedExceptions = PrestoException.class, expectedExceptionsMessageRegExp = "Bucket for value Infinity is out of range")
+    public void testWidthBucketOverflowAscending()
+            throws Exception
+    {
+        functionAssertions.tryEvaluate("width_bucket(infinity(), 0, 4, " + Long.MAX_VALUE + ")", DOUBLE);
+    }
+
+    @Test(expectedExceptions = PrestoException.class, expectedExceptionsMessageRegExp = "Bucket for value Infinity is out of range")
+    public void testWidthBucketOverflowDescending()
+            throws Exception
+    {
+        functionAssertions.tryEvaluate("width_bucket(infinity(), 4, 0, " + Long.MAX_VALUE + ")", DOUBLE);
     }
 }

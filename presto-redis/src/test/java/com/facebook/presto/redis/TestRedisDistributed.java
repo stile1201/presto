@@ -65,11 +65,6 @@ public class TestRedisDistributed
     }
 
     @Override
-    public void testCreateTableAsSelectSampled()
-    {
-    }
-
-    @Override
     public void testSymbolAliasing()
     {
     }
@@ -81,6 +76,13 @@ public class TestRedisDistributed
     @Override
     public void testView()
     {
+    }
+
+    @Override
+    public void testCompatibleTypeChangeForView()
+            throws Exception
+    {
+        // Redis connector currently does not support views
     }
 
     @Override
@@ -106,11 +108,6 @@ public class TestRedisDistributed
     {
     }
 
-    @Override
-    public void testDeleteSemiJoin()
-    {
-    }
-
     //
     // Redis connector does not table rename.
     //
@@ -121,8 +118,13 @@ public class TestRedisDistributed
     }
 
     //
-    // Redis connector does not table column.
+    // Redis connector does not add/rename table column.
     //
+
+    @Override
+    public void testAddColumn()
+    {
+    }
 
     @Override
     public void testRenameColumn()
@@ -144,6 +146,16 @@ public class TestRedisDistributed
 
     @Override
     public void testShowColumns()
+    {
+    }
+
+    @Override
+    public void testGroupingSetMixedExpressionAndColumn()
+    {
+    }
+
+    @Override
+    public void testGroupingSetMixedExpressionAndOrdinal()
     {
     }
 

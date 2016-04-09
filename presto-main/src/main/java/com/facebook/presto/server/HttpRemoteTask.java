@@ -19,8 +19,7 @@ import com.facebook.presto.Session;
 import com.facebook.presto.TaskSource;
 import com.facebook.presto.client.PrestoHeaders;
 import com.facebook.presto.execution.BufferInfo;
-import com.facebook.presto.execution.ExecutionFailureInfo;
-import com.facebook.presto.execution.NodeTaskMap.SplitCountChangeListener;
+import com.facebook.presto.execution.NodeTaskMap.PartitionedSplitCountTracker;
 import com.facebook.presto.execution.PageBufferInfo;
 import com.facebook.presto.execution.RemoteTask;
 import com.facebook.presto.execution.SharedBuffer.BufferState;
@@ -66,6 +65,7 @@ import java.io.EOFException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -88,14 +88,16 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import static com.facebook.presto.spi.StandardErrorCode.REMOTE_TASK_ERROR;
+import static com.facebook.presto.spi.StandardErrorCode.REMOTE_TASK_MISMATCH;
 import static com.facebook.presto.spi.StandardErrorCode.TOO_MANY_REQUESTS_FAILED;
-import static com.facebook.presto.spi.StandardErrorCode.WORKER_RESTARTED;
+import static com.facebook.presto.util.Failures.REMOTE_TASK_MISMATCH_ERROR;
 import static com.facebook.presto.util.Failures.WORKER_NODE_ERROR;
-import static com.facebook.presto.util.Failures.WORKER_RESTARTED_ERROR;
 import static com.facebook.presto.util.Failures.toFailure;
 import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static com.google.common.base.MoreObjects.toStringHelper;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.JsonBodyGenerator.jsonBodyGenerator;
@@ -109,13 +111,14 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-public class HttpRemoteTask
+public final class HttpRemoteTask
         implements RemoteTask
 {
     private static final Logger log = Logger.get(HttpRemoteTask.class);
     private static final Duration MAX_CLEANUP_RETRY_TIME = new Duration(2, TimeUnit.MINUTES);
 
     private final TaskId taskId;
+    private final int partition;
 
     private final Session session;
     private final String nodeId;
@@ -152,12 +155,14 @@ public class HttpRemoteTask
     private final RequestErrorTracker getErrorTracker;
 
     private final AtomicBoolean needsUpdate = new AtomicBoolean(true);
+    private final AtomicBoolean sendPlan = new AtomicBoolean(true);
 
-    private final SplitCountChangeListener splitCountChangeListener;
+    private final PartitionedSplitCountTracker partitionedSplitCountTracker;
 
     public HttpRemoteTask(Session session,
             TaskId taskId,
             String nodeId,
+            int partition,
             URI location,
             PlanFragment planFragment,
             Multimap<PlanNodeId, Split> initialSplits,
@@ -169,24 +174,26 @@ public class HttpRemoteTask
             Duration refreshMaxWait,
             JsonCodec<TaskInfo> taskInfoCodec,
             JsonCodec<TaskUpdateRequest> taskUpdateRequestCodec,
-            SplitCountChangeListener splitCountChangeListener)
+            PartitionedSplitCountTracker partitionedSplitCountTracker)
     {
         requireNonNull(session, "session is null");
         requireNonNull(taskId, "taskId is null");
         requireNonNull(nodeId, "nodeId is null");
         requireNonNull(location, "location is null");
+        checkArgument(partition >= 0, "partition is negative");
         requireNonNull(planFragment, "planFragment1 is null");
         requireNonNull(outputBuffers, "outputBuffers is null");
         requireNonNull(httpClient, "httpClient is null");
         requireNonNull(executor, "executor is null");
         requireNonNull(taskInfoCodec, "taskInfoCodec is null");
         requireNonNull(taskUpdateRequestCodec, "taskUpdateRequestCodec is null");
-        requireNonNull(splitCountChangeListener, "splitCountChangeListener is null");
+        requireNonNull(partitionedSplitCountTracker, "partitionedSplitCountTracker is null");
 
         try (SetThreadName ignored = new SetThreadName("HttpRemoteTask-%s", taskId)) {
             this.taskId = taskId;
             this.session = session;
             this.nodeId = nodeId;
+            this.partition = partition;
             this.planFragment = planFragment;
             this.outputBuffers.set(outputBuffers);
             this.httpClient = httpClient;
@@ -196,7 +203,7 @@ public class HttpRemoteTask
             this.taskUpdateRequestCodec = taskUpdateRequestCodec;
             this.updateErrorTracker = new RequestErrorTracker(taskId, location, minErrorDuration, errorScheduledExecutor, "updating task");
             this.getErrorTracker = new RequestErrorTracker(taskId, location, minErrorDuration, errorScheduledExecutor, "getting info for task");
-            this.splitCountChangeListener = splitCountChangeListener;
+            this.partitionedSplitCountTracker = requireNonNull(partitionedSplitCountTracker, "partitionedSplitCountTracker is null");
 
             for (Entry<PlanNodeId, Split> entry : requireNonNull(initialSplits, "initialSplits is null").entries()) {
                 ScheduledSplit scheduledSplit = new ScheduledSplit(nextSplitId.getAndIncrement(), entry.getValue());
@@ -204,7 +211,6 @@ public class HttpRemoteTask
             }
             if (initialSplits.containsKey(planFragment.getPartitionedSource())) {
                 pendingSourceSplitCount = initialSplits.get(planFragment.getPartitionedSource()).size();
-                fireSplitCountChanged(pendingSourceSplitCount);
             }
 
             List<BufferInfo> bufferStates = outputBuffers.getBuffers()
@@ -216,19 +222,22 @@ public class HttpRemoteTask
 
             taskInfo = new StateMachine<>("task " + taskId, executor, new TaskInfo(
                     taskId,
-                    Optional.empty(),
+                    "",
                     TaskInfo.MIN_VERSION,
                     TaskState.PLANNED,
                     location,
                     DateTime.now(),
                     new SharedBufferInfo(BufferState.OPEN, true, true, 0, 0, 0, 0, bufferStates),
-                    ImmutableSet.<PlanNodeId>of(),
+                    ImmutableSet.of(),
                     taskStats,
-                    ImmutableList.<ExecutionFailureInfo>of()));
+                    ImmutableList.of(),
+                    true));
 
             long timeout = minErrorDuration.toMillis() / 3;
             requestTimeout = new Duration(timeout + refreshMaxWait.toMillis(), MILLISECONDS);
             continuousTaskInfoFetcher = new ContinuousTaskInfoFetcher(refreshMaxWait);
+
+            partitionedSplitCountTracker.setPartitionedSplitCount(getPartitionedSplitCount());
         }
     }
 
@@ -242,6 +251,12 @@ public class HttpRemoteTask
     public String getNodeId()
     {
         return nodeId;
+    }
+
+    @Override
+    public int getPartition()
+    {
+        return partition;
     }
 
     @Override
@@ -263,15 +278,22 @@ public class HttpRemoteTask
     }
 
     @Override
-    public synchronized void addSplits(PlanNodeId sourceId, Iterable<Split> splits)
+    public synchronized void addSplits(Multimap<PlanNodeId, Split> splitsBySource)
     {
         try (SetThreadName ignored = new SetThreadName("HttpRemoteTask-%s", taskId)) {
-            requireNonNull(sourceId, "sourceId is null");
-            requireNonNull(splits, "splits is null");
-            checkState(!noMoreSplits.contains(sourceId), "noMoreSplits has already been set for %s", sourceId);
+            requireNonNull(splitsBySource, "splitsBySource is null");
 
             // only add pending split if not done
-            if (!getTaskInfo().getState().isDone()) {
+            if (getTaskInfo().getState().isDone()) {
+                return;
+            }
+
+            for (Entry<PlanNodeId, Collection<Split>> entry : splitsBySource.asMap().entrySet()) {
+                PlanNodeId sourceId = entry.getKey();
+                Collection<Split> splits = entry.getValue();
+
+                checkState(!noMoreSplits.contains(sourceId), "noMoreSplits has already been set for %s", sourceId);
+                checkState(!noMoreSplits.contains(sourceId), "noMoreSplits has already been set for %s", sourceId);
                 int added = 0;
                 for (Split split : splits) {
                     if (pendingSplits.put(sourceId, new ScheduledSplit(nextSplitId.getAndIncrement(), split))) {
@@ -280,7 +302,7 @@ public class HttpRemoteTask
                 }
                 if (sourceId.equals(planFragment.getPartitionedSource())) {
                     pendingSourceSplitCount += added;
-                    fireSplitCountChanged(added);
+                    partitionedSplitCountTracker.setPartitionedSplitCount(getPartitionedSplitCount());
                 }
                 needsUpdate.set(true);
             }
@@ -315,13 +337,27 @@ public class HttpRemoteTask
     @Override
     public int getPartitionedSplitCount()
     {
-        return pendingSourceSplitCount + taskInfo.get().getStats().getQueuedPartitionedDrivers() + taskInfo.get().getStats().getRunningPartitionedDrivers();
+        TaskInfo taskInfo = this.taskInfo.get();
+        if (taskInfo.getState().isDone()) {
+            return 0;
+        }
+        return getPendingSourceSplitCount() + taskInfo.getStats().getQueuedPartitionedDrivers() + taskInfo.getStats().getRunningPartitionedDrivers();
     }
 
     @Override
     public int getQueuedPartitionedSplitCount()
     {
-        return pendingSourceSplitCount + taskInfo.get().getStats().getQueuedPartitionedDrivers();
+        TaskInfo taskInfo = this.taskInfo.get();
+        if (taskInfo.getState().isDone()) {
+            return 0;
+        }
+        return getPendingSourceSplitCount() + taskInfo.getStats().getQueuedPartitionedDrivers();
+    }
+
+    @SuppressWarnings("FieldAccessNotGuarded")
+    private int getPendingSourceSplitCount()
+    {
+        return pendingSourceSplitCount;
     }
 
     @Override
@@ -348,18 +384,15 @@ public class HttpRemoteTask
         if (newValue.getState().isDone()) {
             // splits can be huge so clear the list
             pendingSplits.clear();
-            fireSplitCountChanged(-pendingSourceSplitCount);
             pendingSourceSplitCount = 0;
         }
 
-        int oldPartitionedSplitCount = getPartitionedSplitCount();
-
         // change to new value if old value is not changed and new value has a newer version
-        AtomicBoolean workerRestarted = new AtomicBoolean();
-        boolean updated = taskInfo.setIf(newValue, oldValue -> {
-            // did the worker restart
-            if (oldValue.getNodeInstanceId().isPresent() && !oldValue.getNodeInstanceId().equals(newValue.getNodeInstanceId())) {
-                workerRestarted.set(true);
+        AtomicBoolean taskMismatch = new AtomicBoolean();
+        taskInfo.setIf(newValue, oldValue -> {
+            // did the task instance id change
+            if (!isNullOrEmpty(oldValue.getTaskInstanceId()) && !oldValue.getTaskInstanceId().equals(newValue.getTaskInstanceId())) {
+                taskMismatch.set(true);
                 return false;
             }
 
@@ -367,16 +400,12 @@ public class HttpRemoteTask
                 // never update if the task has reached a terminal state
                 return false;
             }
-            if (newValue.getVersion() < oldValue.getVersion()) {
-                // don't update to an older version (same version is ok)
-                return false;
-            }
-            return true;
+            // don't update to an older version (same version is ok)
+            return newValue.getVersion() >= oldValue.getVersion();
         });
 
-        if (workerRestarted.get()) {
-            PrestoException exception = new PrestoException(WORKER_RESTARTED, format("%s (%s)", WORKER_RESTARTED_ERROR, newValue.getSelf()));
-            failTask(exception);
+        if (taskMismatch.get()) {
+            failTask(new PrestoException(REMOTE_TASK_MISMATCH, REMOTE_TASK_MISMATCH_ERROR));
             abort();
         }
 
@@ -394,24 +423,15 @@ public class HttpRemoteTask
             }
         }
 
-        if (updated) {
-            if (getTaskInfo().getState().isDone()) {
-                fireSplitCountChanged(-oldPartitionedSplitCount);
-            }
-            else {
-                fireSplitCountChanged(getPartitionedSplitCount() - oldPartitionedSplitCount);
-            }
-        }
+        partitionedSplitCountTracker.setPartitionedSplitCount(getPartitionedSplitCount());
     }
 
-    private void fireSplitCountChanged(int delta)
+    private void scheduleUpdate()
     {
-        if (delta != 0) {
-            splitCountChangeListener.splitCountChanged(delta);
-        }
+        executor.execute(this::sendUpdate);
     }
 
-    private synchronized void scheduleUpdate()
+    private synchronized void sendUpdate()
     {
         // don't update if the task hasn't been started yet or if it is already finished
         if (!needsUpdate.get() || taskInfo.get().getState().isDone()) {
@@ -434,13 +454,18 @@ public class HttpRemoteTask
         // if throttled due to error, asynchronously wait for timeout and try again
         ListenableFuture<?> errorRateLimit = updateErrorTracker.acquireRequestPermit();
         if (!errorRateLimit.isDone()) {
-            errorRateLimit.addListener(this::scheduleUpdate, executor);
+            errorRateLimit.addListener(this::sendUpdate, executor);
             return;
         }
 
         List<TaskSource> sources = getSources();
+
+        Optional<PlanFragment> fragment = Optional.empty();
+        if (sendPlan.get()) {
+            fragment = Optional.of(planFragment);
+        }
         TaskUpdateRequest updateRequest = new TaskUpdateRequest(session.toSessionRepresentation(),
-                planFragment,
+                fragment,
                 sources,
                 outputBuffers.get());
 
@@ -473,7 +498,7 @@ public class HttpRemoteTask
                 .collect(toImmutableList());
     }
 
-    private TaskSource getSource(PlanNodeId planNodeId)
+    private synchronized TaskSource getSource(PlanNodeId planNodeId)
     {
         Set<ScheduledSplit> splits = pendingSplits.get(planNodeId);
         boolean noMoreSplits = this.noMoreSplits.contains(planNodeId);
@@ -491,6 +516,7 @@ public class HttpRemoteTask
             if (getTaskInfo().getState().isDone()) {
                 return;
             }
+            checkState(continuousTaskInfoFetcher.isRunning(), "Cannot cancel task when it is not running");
 
             URI uri = getTaskInfo().getSelf();
             if (uri == null) {
@@ -510,9 +536,9 @@ public class HttpRemoteTask
     {
         try (SetThreadName ignored = new SetThreadName("HttpRemoteTask-%s", taskId)) {
             // clear pending splits to free memory
-            fireSplitCountChanged(-pendingSourceSplitCount);
             pendingSplits.clear();
             pendingSourceSplitCount = 0;
+            partitionedSplitCountTracker.setPartitionedSplitCount(getPartitionedSplitCount());
 
             // cancel pending request
             if (currentRequest != null) {
@@ -526,7 +552,7 @@ public class HttpRemoteTask
             URI uri = taskInfo.getSelf();
 
             updateTaskInfo(new TaskInfo(taskInfo.getTaskId(),
-                    taskInfo.getNodeInstanceId(),
+                    taskInfo.getTaskInstanceId(),
                     TaskInfo.MAX_VERSION,
                     TaskState.ABORTED,
                     uri,
@@ -534,7 +560,8 @@ public class HttpRemoteTask
                     taskInfo.getOutputBuffers(),
                     taskInfo.getNoMoreSplits(),
                     taskInfo.getStats(),
-                    ImmutableList.<ExecutionFailureInfo>of()));
+                    ImmutableList.of(),
+                    taskInfo.isNeedsPlan()));
 
             // send abort to task and ignore response
             Request request = prepareDelete()
@@ -590,7 +617,7 @@ public class HttpRemoteTask
             log.debug(cause, "Remote task failed: %s", taskInfo.getSelf());
         }
         updateTaskInfo(new TaskInfo(taskInfo.getTaskId(),
-                taskInfo.getNodeInstanceId(),
+                taskInfo.getTaskInstanceId(),
                 TaskInfo.MAX_VERSION,
                 TaskState.FAILED,
                 taskInfo.getSelf(),
@@ -598,7 +625,8 @@ public class HttpRemoteTask
                 taskInfo.getOutputBuffers(),
                 taskInfo.getNoMoreSplits(),
                 taskInfo.getStats(),
-                ImmutableList.of(toFailure(cause))));
+                ImmutableList.of(toFailure(cause)),
+                taskInfo.isNeedsPlan()));
     }
 
     @Override
@@ -626,12 +654,13 @@ public class HttpRemoteTask
                 try {
                     synchronized (HttpRemoteTask.this) {
                         currentRequest = null;
+                        sendPlan.set(value.isNeedsPlan());
                     }
                     updateTaskInfo(value, sources);
                     updateErrorTracker.requestSucceeded();
                 }
                 finally {
-                    scheduleUpdate();
+                    sendUpdate();
                 }
             }
         }
@@ -664,7 +693,7 @@ public class HttpRemoteTask
                     abort();
                 }
                 finally {
-                    scheduleUpdate();
+                    sendUpdate();
                 }
             }
         }
@@ -762,7 +791,7 @@ public class HttpRemoteTask
                 }
 
                 try {
-                    updateTaskInfo(value, ImmutableList.<TaskSource>of());
+                    updateTaskInfo(value, ImmutableList.of());
                     getErrorTracker.requestSucceeded();
                 }
                 finally {
@@ -813,6 +842,11 @@ public class HttpRemoteTask
 
                 failTask(cause);
             }
+        }
+
+        public synchronized boolean isRunning()
+        {
+            return running;
         }
     }
 

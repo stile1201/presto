@@ -13,9 +13,10 @@
  */
 package com.facebook.presto.raptor.storage;
 
+import com.facebook.presto.raptor.RaptorConnectorId;
+import com.facebook.presto.raptor.RaptorNodeSupplier;
 import com.facebook.presto.raptor.backup.BackupStore;
 import com.facebook.presto.raptor.metadata.ColumnInfo;
-import com.facebook.presto.raptor.metadata.DatabaseShardManager;
 import com.facebook.presto.raptor.metadata.MetadataDao;
 import com.facebook.presto.raptor.metadata.ShardInfo;
 import com.facebook.presto.raptor.metadata.ShardManager;
@@ -23,6 +24,7 @@ import com.facebook.presto.raptor.metadata.ShardMetadata;
 import com.facebook.presto.spi.HostAddress;
 import com.facebook.presto.spi.Node;
 import com.facebook.presto.spi.NodeManager;
+import com.facebook.presto.spi.NodeState;
 import com.facebook.presto.spi.predicate.TupleDomain;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -38,9 +40,11 @@ import java.io.File;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 
+import static com.facebook.presto.raptor.metadata.TestDatabaseShardManager.createShardManager;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.google.common.io.Files.createTempDir;
 import static io.airlift.testing.FileUtils.deleteRecursively;
@@ -66,7 +70,7 @@ public class TestShardEjector
     {
         dbi = new DBI("jdbc:h2:mem:test" + System.nanoTime());
         dummyHandle = dbi.open();
-        shardManager = new DatabaseShardManager(dbi);
+        shardManager = createShardManager(dbi);
 
         dataDir = createTempDir();
         storageService = new FileStorageService(dataDir);
@@ -91,7 +95,8 @@ public class TestShardEjector
         NodeManager nodeManager = createNodeManager("node1", "node2", "node3", "node4", "node5");
 
         ShardEjector ejector = new ShardEjector(
-                nodeManager,
+                nodeManager.getCurrentNode().getNodeIdentifier(),
+                new RaptorNodeSupplier(nodeManager, new RaptorConnectorId("test")),
                 shardManager,
                 storageService,
                 new Duration(1, HOURS),
@@ -118,7 +123,7 @@ public class TestShardEjector
         long tableId = createTable("test");
         List<ColumnInfo> columns = ImmutableList.of(new ColumnInfo(1, BIGINT));
 
-        shardManager.createTable(tableId, columns);
+        shardManager.createTable(tableId, columns, false);
 
         long transactionId = shardManager.beginTransaction();
         shardManager.commitShards(transactionId, tableId, columns, shards, Optional.empty());
@@ -131,7 +136,7 @@ public class TestShardEjector
 
         ejector.process();
 
-        shardManager.getShardNodes(tableId, TupleDomain.all());
+        shardManager.getShardNodes(tableId, false, false, TupleDomain.all());
 
         Set<UUID> ejectedShards = shards.subList(0, 4).stream()
                 .map(ShardInfo::getShardUuid)
@@ -164,7 +169,7 @@ public class TestShardEjector
 
     private long createTable(String name)
     {
-        return dbi.onDemand(MetadataDao.class).insertTable("test", name, false);
+        return dbi.onDemand(MetadataDao.class).insertTable("test", name, false, null);
     }
 
     private static Set<UUID> uuids(Set<ShardMetadata> metadata)
@@ -176,7 +181,7 @@ public class TestShardEjector
 
     private static ShardInfo shardInfo(String node, long size)
     {
-        return new ShardInfo(randomUUID(), ImmutableSet.of(node), ImmutableList.of(), 1, size, size * 2);
+        return new ShardInfo(randomUUID(), OptionalInt.empty(), ImmutableSet.of(node), ImmutableList.of(), 1, size, size * 2);
     }
 
     private static NodeManager createNodeManager(String current, String... others)
@@ -205,7 +210,7 @@ public class TestShardEjector
         }
 
         @Override
-        public Set<Node> getActiveNodes()
+        public Set<Node> getNodes(NodeState state)
         {
             return nodes;
         }

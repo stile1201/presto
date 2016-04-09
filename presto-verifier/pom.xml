@@ -3,9 +3,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.cmm.presto</groupId>
+        <groupId>com.facebook.presto</groupId>
         <artifactId>presto-root</artifactId>
-        <version>0.127-CUSTOM-SNAPSHOT</version>
+        <version>0.143-SNAPSHOT</version>
     </parent>
 
     <artifactId>presto-verifier</artifactId>
@@ -18,18 +18,28 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.cmm.presto</groupId>
+            <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-parser</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.facebook.presto</groupId>
             <artifactId>presto-main</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>com.cmm.presto</groupId>
+            <groupId>com.facebook.presto</groupId>
             <artifactId>presto-jdbc</artifactId>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
         </dependency>
 
         <dependency>
@@ -60,6 +70,11 @@
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>event</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>stats</artifactId>
         </dependency>
 
         <dependency>
@@ -109,7 +124,7 @@
         </dependency>
 
         <dependency>
-            <groupId>com.cmm.presto</groupId>
+            <groupId>com.facebook.presto</groupId>
             <artifactId>presto-spi</artifactId>
         </dependency>
 

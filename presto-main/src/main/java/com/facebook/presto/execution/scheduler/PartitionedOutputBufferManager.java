@@ -14,16 +14,14 @@
 package com.facebook.presto.execution.scheduler;
 
 import com.facebook.presto.OutputBuffers;
-import com.facebook.presto.PagePartitionFunction;
 import com.facebook.presto.execution.TaskId;
-import com.google.common.collect.ImmutableMap;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.function.BiFunction;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import static com.facebook.presto.OutputBuffers.INITIAL_EMPTY_OUTPUT_BUFFERS;
@@ -33,54 +31,41 @@ import static java.util.Objects.requireNonNull;
 public class PartitionedOutputBufferManager
         implements OutputBufferManager
 {
-    protected final Consumer<OutputBuffers> outputBufferTarget;
-    protected final BiFunction<Integer, Integer, PagePartitionFunction> partitionFunctionGenerator;
+    private final Consumer<OutputBuffers> outputBufferTarget;
     @GuardedBy("this")
-    private final Set<TaskId> bufferIds = new LinkedHashSet<>();
+    private final Map<TaskId, Integer> partitions = new LinkedHashMap<>();
     @GuardedBy("this")
     private boolean noMoreBufferIds;
 
-    public PartitionedOutputBufferManager(
-            Consumer<OutputBuffers> outputBufferTarget,
-            BiFunction<Integer, Integer, PagePartitionFunction> partitionFunctionGenerator)
+    public PartitionedOutputBufferManager(Consumer<OutputBuffers> outputBufferTarget)
     {
         this.outputBufferTarget = requireNonNull(outputBufferTarget, "outputBufferTarget is null");
-        this.partitionFunctionGenerator = requireNonNull(partitionFunctionGenerator, "partitionFunctionGenerator is null");
     }
 
     @Override
-    public synchronized void addOutputBuffer(TaskId bufferId)
+    public void addOutputBuffers(List<OutputBuffer> newBuffers, boolean noMoreBuffers)
     {
-        if (noMoreBufferIds) {
-            // a stage can move to a final state (e.g., failed) while scheduling, so ignore
-            // the new buffers
-            return;
-        }
-        bufferIds.add(bufferId);
-    }
-
-    @Override
-    public void noMoreOutputBuffers()
-    {
-        OutputBuffers outputBuffers;
         synchronized (this) {
             if (noMoreBufferIds) {
-                // already created the buffers
+                // a stage can move to a final state (e.g., failed) while scheduling, so ignore
+                // the new buffers
+                return;
+            }
+
+            for (OutputBuffer newBuffer : newBuffers) {
+                partitions.put(newBuffer.getBufferId(), newBuffer.getPartition());
+            }
+
+            // only update target when all buffers have been created
+            if (!noMoreBuffers) {
                 return;
             }
             noMoreBufferIds = true;
-
-            ImmutableMap.Builder<TaskId, PagePartitionFunction> buffers = ImmutableMap.builder();
-            int partition = 0;
-            int partitionCount = bufferIds.size();
-            for (TaskId bufferId : bufferIds) {
-                buffers.put(bufferId, partitionFunctionGenerator.apply(partition, partitionCount));
-                partition++;
-            }
-            outputBuffers = INITIAL_EMPTY_OUTPUT_BUFFERS
-                    .withBuffers(buffers.build())
-                    .withNoMoreBufferIds();
         }
+
+        OutputBuffers outputBuffers = INITIAL_EMPTY_OUTPUT_BUFFERS
+                .withBuffers(partitions)
+                .withNoMoreBufferIds();
 
         outputBufferTarget.accept(outputBuffers);
     }
